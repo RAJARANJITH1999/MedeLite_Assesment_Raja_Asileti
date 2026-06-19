@@ -226,13 +226,45 @@ memory), backend, frontend, styling, AI integration, Docker, CI, and tests —
 was built in **under 1 hour** working directly with **Claude Code** as an AI
 pair-engineer.
 
-That speed wasn't "let the AI write it and hope" — it came from directing
-the agent the way you'd direct a capable engineer on a real ticket:
-resolving the architecture decision up front (decoupled FastAPI/Django
-rather than a framework mashup), insisting on live verification against the
-real CMS API instead of trusting stale assumptions, defining the hard
-constraints explicitly (branding guardrail) so they got enforced with tests
-rather than left to chance, and scoping the "beyond MVP" work (AI insights,
-history, Sanavox) deliberately rather than letting it sprawl. The result is
-a codebase that's organized, tested, and Dockerized the same way a small
-production service would be — not a one-shot demo.
+That speed wasn't "let the AI write it and hope." It came from directing
+the agent the way you'd direct an engineer on a real ticket, using judgment
+built from production work, not from this case study alone:
+
+- **Architecture first, code second.** The decoupled FastAPI/Django split
+  wasn't a default — it's the same backend-system-design call made when
+  leading a multi-engineer team: draw the seam between "data and
+  processing" and "presentation" early, so each side changes independently
+  without the other breaking.
+- **Verify against the real system, not memory.** The CMS Provider Data
+  Catalog integration — concurrent async fetches across three datasets,
+  strict schema validation, explicit 404/422/502 handling for invalid or
+  missing facilities — got built against the live API and a frozen test
+  fixture, the same instinct used integrating third-party REST APIs (e.g.,
+  CRM systems) into production pipelines where stale assumptions about a
+  schema break things downstream, not at write-time.
+- **Hard constraints become tests, not comments.** The branding guardrail —
+  "INFINITE" must never be overwritten by a facility name — is enforced by
+  an automated test on both services, not a note hoping a future change
+  respects it. That's a QA reflex: a rule that matters gets enforced by a
+  pipeline, not remembered at review time.
+- **AI features are scoped and grounded, not bolted on.** Both Sanavox (the
+  comparison-page assistant) and the narrative-insights feature answer only
+  from retrieved facility data, cap their own scope explicitly (a
+  3-question limit), and fall back to a safe rule-based response instead of
+  failing loudly when a key or model is unavailable — the same discipline
+  applied to OpenAI function-calling and retrieval-grounded pipelines
+  elsewhere.
+- **Automation and QA are one habit here, not two steps.** GitHub Actions
+  runs both test suites on every push; Docker makes "works on my machine"
+  untrue by construction. Treating CI and tests as part of the deliverable —
+  not an afterthought once the demo works — is the same posture this
+  internship is named after: Healthcare Data Automation **and** QA
+  Analytics, together.
+
+The CMS data itself — star ratings, claims-based hospitalization/ED
+measures, facility metadata — was also a familiar shape of problem:
+inconsistent public-sector schema that needs validation and clean
+remapping before it's trustworthy, the same kind of work involved in
+preparing large healthcare datasets for downstream use. None of that is
+visible in a feature checklist; it's visible in how fast and how cleanly
+the checklist got finished.
