@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: Letter; margin: 2.2cm 1.8cm; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; margin: 0; }
+  .brand-header { text-align: center; margin-bottom: 18px; }
+  .brand-name {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #d6248c, #6f3bd6, #1f7fd6);
+    -webkit-background-clip: text;
+    color: #6f3bd6;
+  }
+  .brand-tagline { font-size: 13px; font-weight: 600; color: #444; letter-spacing: 1px; text-transform: uppercase; }
+  .report-title { text-align: center; font-size: 18px; font-weight: 700; margin: 6px 0 0; letter-spacing: 0.5px; }
+  .state-code { text-align: center; font-size: 14px; font-weight: 700; margin-bottom: 16px; color: #444; }
+  table.report-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  table.report-table th, table.report-table td {
+    border: 1px solid #ccc; padding: 6px 10px; text-align: left; vertical-align: top;
+  }
+  table.report-table th { width: 42%; background: #f5f3fb; font-weight: 700; }
+  table.report-table td { font-style: italic; }
+  .ai-insights { margin-top: 18px; padding: 12px 14px; background: #f5f3fb; border-left: 4px solid #6f3bd6; }
+  .ai-insights h2 { font-size: 13px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ai-insights p { font-size: 11px; line-height: 1.5; margin: 0; }
+  .footer { margin-top: 16px; font-size: 10px; text-align: center; }
+  .footer a { color: #1f7fd6; }
+</style>
+</head>
+<body>
+  <div class="brand-header">
+    <div class="brand-name">INFINITE</div>
+    <div class="brand-tagline">Managed by MEDELITE</div>
+  </div>
+  <div class="report-title">FACILITY ASSESSMENT SNAPSHOT</div>
+  <div class="state-code">{{ state }}</div>
+
+  <table class="report-table">
+    {% for label, value in rows %}
+    <tr>
+      <th>{{ label }}</th>
+      <td>{{ value }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% if ai_summary %}
+  <div class="ai-insights">
+    <h2>AI-Generated Insights</h2>
+    <p>{{ ai_summary }}</p>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    <a href="{{ medicare_url }}">{{ medicare_url }}</a>
+  </div>
+</body>
+</html>

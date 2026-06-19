@@ -1,0 +1,27 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+
+# Django
+frontend/db.sqlite3
+frontend/staticfiles/
+
+# OS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Claude Code session-local files
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# Internal-only project docs (not part of the public submission)
+.claude/
+CLAUDE.md
+DESIGN.md
+PROJECT.md
+Project_details/

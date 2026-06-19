@@ -1,0 +1,119 @@
+{% extends "assessment/base.html" %}
+{% block title %}Compare Facilities{% endblock %}
+{% block content %}
+<h1 class="page-title">Compare Facilities</h1>
+
+{% if not lookups %}
+<p>Select facilities from <a href="{% url 'history' %}">History</a> to compare them side by side.</p>
+{% else %}
+<table class="data-table">
+  <tr>
+    <th>Field</th>
+    {% for lookup in lookups %}<th>{{ lookup.facility_name }} ({{ lookup.ccn }})</th>{% endfor %}
+  </tr>
+  <tr><th>State</th>{% for lookup in lookups %}<td>{{ lookup.state }}</td>{% endfor %}</tr>
+  <tr><th>Overall Rating</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.overall_rating|default:"N/A" }}</td>{% endfor %}</tr>
+  <tr><th>Health Inspection</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.health_inspection_rating|default:"N/A" }}</td>{% endfor %}</tr>
+  <tr><th>Staffing</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.staffing_rating|default:"N/A" }}</td>{% endfor %}</tr>
+  <tr><th>Quality of Resident Care</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.quality_rating|default:"N/A" }}</td>{% endfor %}</tr>
+  <tr><th>Census Capacity</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.certified_beds|default:"N/A" }}</td>{% endfor %}</tr>
+  <tr><th>Current Census</th>{% for lookup in lookups %}<td>{{ lookup.manual_inputs.current_census|default:"N/A" }}</td>{% endfor %}</tr>
+  <tr><th>Short Term Hospitalization</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.str_hospitalization.facility_value|floatformat:1 }}%</td>{% endfor %}</tr>
+  <tr><th>LT Hospitalization</th>{% for lookup in lookups %}<td>{{ lookup.facility_data.lt_hospitalization.facility_value|floatformat:2 }}</td>{% endfor %}</tr>
+  <tr><th>Looked up</th>{% for lookup in lookups %}<td>{{ lookup.looked_up_at|date:"Y-m-d H:i" }}</td>{% endfor %}</tr>
+</table>
+
+<div id="sanavox-widget">
+  <button id="sanavox-toggle" type="button">
+    <span class="sanavox-toggle-icon">&#10022;</span> Ask Sanavox
+  </button>
+  <div id="sanavox-panel">
+    <div class="sanavox-header">
+      <button id="sanavox-close" type="button" aria-label="Close">&times;</button>
+      <div class="sanavox-header-title"><span class="sanavox-dot"></span><strong>Sanavox</strong></div>
+      <span class="sanavox-sub">AI assistant for this comparison — preview limit: <span id="sanavox-remaining">{{ chat_question_limit }}</span> question(s) left</span>
+    </div>
+    <div id="sanavox-messages">
+      <div class="sanavox-msg bot">Hi, I'm Sanavox. Ask me anything about the facilities above — e.g. "Which one has better staffing?"</div>
+    </div>
+    <form id="sanavox-form">
+      <input type="text" id="sanavox-input" placeholder="Ask anything about these reports..." autocomplete="off">
+      <button type="submit" aria-label="Send">&#10148;</button>
+    </form>
+  </div>
+</div>
+
+<script id="sanavox-data" type="application/json">{{ compare_chat_data_json|safe }}</script>
+<script>
+  function getCookie(name) {
+    const match = document.cookie.match('(^|; )' + name + '=([^;]*)');
+    return match ? decodeURIComponent(match[2]) : null;
+  }
+
+  const sanavoxFacilities = JSON.parse(document.getElementById('sanavox-data').textContent);
+  let sanavoxRemaining = {{ chat_questions_remaining }};
+
+  const toggleBtn = document.getElementById('sanavox-toggle');
+  const closeBtn = document.getElementById('sanavox-close');
+  const panel = document.getElementById('sanavox-panel');
+  const messages = document.getElementById('sanavox-messages');
+  const form = document.getElementById('sanavox-form');
+  const input = document.getElementById('sanavox-input');
+  const remainingLabel = document.getElementById('sanavox-remaining');
+
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('is-open');
+    if (panel.classList.contains('is-open')) { input.focus(); }
+  });
+  closeBtn.addEventListener('click', () => { panel.classList.remove('is-open'); });
+
+  function addMessage(text, who) {
+    const div = document.createElement('div');
+    div.className = 'sanavox-msg ' + who;
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function setDisabled(disabled) {
+    input.disabled = disabled;
+    form.querySelector('button').disabled = disabled;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question || sanavoxRemaining <= 0) return;
+
+    addMessage(question, 'user');
+    input.value = '';
+    setDisabled(true);
+
+    try {
+      const response = await fetch("{% url 'chat' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ question: question, facilities: sanavoxFacilities }),
+      });
+      const data = await response.json();
+      if (response.status === 429) {
+        addMessage(data.message, 'bot');
+        sanavoxRemaining = 0;
+      } else if (!response.ok) {
+        addMessage(data.message || 'Sanavox ran into an error. Please try again.', 'bot');
+      } else {
+        addMessage(data.answer, 'bot');
+        sanavoxRemaining = data.remaining;
+      }
+    } catch (err) {
+      addMessage('Could not reach Sanavox right now. Please try again.', 'bot');
+    }
+
+    remainingLabel.textContent = sanavoxRemaining;
+    setDisabled(sanavoxRemaining <= 0);
+  });
+
+  if (sanavoxRemaining <= 0) { setDisabled(true); }
+</script>
+{% endif %}
+{% endblock %}

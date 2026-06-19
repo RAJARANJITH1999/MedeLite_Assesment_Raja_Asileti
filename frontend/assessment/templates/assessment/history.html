@@ -1,0 +1,28 @@
+{% extends "assessment/base.html" %}
+{% block title %}History{% endblock %}
+{% block content %}
+<h1 class="page-title">Lookup History</h1>
+
+{% if not lookups %}
+<p>No saved lookups yet. <a href="{% url 'lookup' %}">Look up a facility</a> to get started.</p>
+{% else %}
+<form method="get" action="{% url 'compare' %}">
+  {% for lookup in lookups %}
+  <div class="history-row">
+    <label style="display:inline; text-transform:none; font-weight:400;">
+      <input type="checkbox" name="id" value="{{ lookup.id }}" style="width:auto; height:auto; margin-right:8px;">
+      <strong>{{ lookup.facility_name }}</strong> ({{ lookup.ccn }}) — {{ lookup.state }}
+      {% if lookup.overall_rating %}<span class="rating-pill"><span class="value rating-{{ lookup.overall_rating }}">{{ lookup.overall_rating }}&#9733;</span></span>{% endif %}
+    </label>
+    <span style="display:flex; align-items:center; gap:16px; flex-shrink:0;">
+      <a href="{% url 'saved_lookup_detail' lookup.id %}">View Report</a>
+      <span class="timestamp">{{ lookup.looked_up_at|date:"Y-m-d H:i" }}</span>
+    </span>
+  </div>
+  {% endfor %}
+  <div class="actions-row">
+    <button type="submit" class="btn btn-primary">Compare selected</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

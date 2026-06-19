@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=8001
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - BACKEND_API_URL=http://backend:8001
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+      - DB_DIR=/app/data
+    depends_on:
+      - backend
+    volumes:
+      - frontend_db:/app/data
+
+volumes:
+  frontend_db:

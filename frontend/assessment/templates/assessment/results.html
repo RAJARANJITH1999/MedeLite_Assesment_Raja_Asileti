@@ -1,0 +1,114 @@
+{% extends "assessment/base.html" %}
+{% block title %}Facility Assessment Snapshot{% endblock %}
+{% block content %}
+<h1 class="page-title">Facility Assessment Snapshot</h1>
+<p class="help-text" style="margin-top:-12px;">{{ facility.state }}</p>
+
+{% if viewing_saved %}
+<div class="saved-banner">Viewing a saved lookup from history. <a href="{% url 'history' %}">Back to History</a></div>
+{% endif %}
+
+<div class="facility-card">
+  <div class="name">{{ display_name }}</div>
+  <div class="location">{{ facility.address }}, {{ facility.city }}, {{ facility.state }} {{ facility.zip_code }}</div>
+  <div class="rating-row">
+    {% with overall=facility.overall_rating health=facility.health_inspection_rating staffing=facility.staffing_rating quality=facility.quality_rating %}
+    <span class="rating-pill">Overall <span class="value rating-{{ overall|default:0 }}">{{ overall|default:"N/A" }}</span></span>
+    <span class="rating-pill">Health Inspection <span class="value rating-{{ health|default:0 }}">{{ health|default:"N/A" }}</span></span>
+    <span class="rating-pill">Staffing <span class="value rating-{{ staffing|default:0 }}">{{ staffing|default:"N/A" }}</span></span>
+    <span class="rating-pill">Quality of Resident Care <span class="value rating-{{ quality|default:0 }}">{{ quality|default:"N/A" }}</span></span>
+    {% endwith %}
+  </div>
+</div>
+
+{% if ai_summary %}
+<div class="ai-insight-callout">
+  <span class="tag">AI-Generated Insights ({{ ai_generated_by }})</span>
+  {{ ai_summary }}
+</div>
+{% endif %}
+
+<h2 class="section-title">Performance Charts</h2>
+<div class="chart-container"><canvas id="ratingsChart" height="120"></canvas></div>
+<div class="chart-container"><canvas id="claimsPercentChart" height="120"></canvas></div>
+<div class="chart-container"><canvas id="claimsRateChart" height="120"></canvas></div>
+
+<h2 class="section-title">Report Detail</h2>
+<table class="data-table">
+  <tr><th>Name of Facility</th><td>{{ display_name }}</td></tr>
+  <tr><th>Location</th><td>{{ facility.address }}, {{ facility.city }}, {{ facility.state }}</td></tr>
+  <tr><th>EMR</th><td>{{ manual.emr|default:"N/A" }}</td></tr>
+  <tr><th>Census Capacity</th><td>{{ facility.certified_beds|default:"N/A" }}</td></tr>
+  <tr><th>Current Census</th><td>{{ manual.current_census|default:"N/A" }}</td></tr>
+  <tr><th>Type of Patient</th><td>{{ manual.patient_type|default:"N/A" }}</td></tr>
+  <tr><th>Previous Coverage from Medelite</th><td>{{ manual.previous_coverage|default:"N/A" }}</td></tr>
+  <tr><th>Previous Provider Performance from Medelite</th><td>{{ manual.previous_performance|default:"N/A" }}</td></tr>
+  <tr><th>Medical Coverage</th><td>{{ manual.medical_coverage|default:"N/A" }}</td></tr>
+  <tr><th>Overall Star Rating</th><td>{{ facility.overall_rating|default:"N/A" }}</td></tr>
+  <tr><th>Health Inspection</th><td>{{ facility.health_inspection_rating|default:"N/A" }}</td></tr>
+  <tr><th>Staffing</th><td>{{ facility.staffing_rating|default:"N/A" }}</td></tr>
+  <tr><th>Quality of Resident Care</th><td>{{ facility.quality_rating|default:"N/A" }}</td></tr>
+  <tr><th>Short Term Hospitalization</th><td>{{ facility.str_hospitalization.facility_value|floatformat:1 }}%</td></tr>
+  <tr><th>STR National Avg. for Hospitalization</th><td>{{ facility.str_hospitalization.national_avg|floatformat:1 }}%</td></tr>
+  <tr><th>STR State National Avg. for Hospitalization</th><td>{{ facility.str_hospitalization.state_avg|floatformat:1 }}%</td></tr>
+  <tr><th>STR ED Visit</th><td>{{ facility.str_ed_visit.facility_value|floatformat:1 }}%</td></tr>
+  <tr><th>STR ED Visits National Avg.</th><td>{{ facility.str_ed_visit.national_avg|floatformat:1 }}%</td></tr>
+  <tr><th>STR ED Visits State Avg.</th><td>{{ facility.str_ed_visit.state_avg|floatformat:1 }}%</td></tr>
+  <tr><th>LT Hospitalization</th><td>{{ facility.lt_hospitalization.facility_value|floatformat:2 }}</td></tr>
+  <tr><th>LT National Avg. for Hospitalization</th><td>{{ facility.lt_hospitalization.national_avg|floatformat:2 }}</td></tr>
+  <tr><th>LT State National Avg. for Hospitalization</th><td>{{ facility.lt_hospitalization.state_avg|floatformat:2 }}</td></tr>
+  <tr><th>ED Visit</th><td>{{ facility.lt_ed_visit.facility_value|floatformat:2 }}</td></tr>
+  <tr><th>LT ED Visits National Avg.</th><td>{{ facility.lt_ed_visit.national_avg|floatformat:2 }}</td></tr>
+  <tr><th>LT ED Visits State Avg.</th><td>{{ facility.lt_ed_visit.state_avg|floatformat:2 }}</td></tr>
+</table>
+
+<p><a href="{{ facility.medicare_care_compare_url }}" target="_blank" rel="noopener">View full profile on Medicare Care Compare &rarr;</a></p>
+
+<div class="actions-row">
+  <form method="post" action="{{ download_pdf_url }}">{% csrf_token %}<button type="submit" class="btn btn-primary">Download PDF</button></form>
+  <form method="post" action="{{ download_docx_url }}">{% csrf_token %}<button type="submit" class="btn btn-secondary">Download Word Doc</button></form>
+  <a href="{% url 'lookup' %}" class="btn btn-secondary">New Lookup</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script id="chart-data" type="application/json">{{ chart_data_json|safe }}</script>
+<script>
+  const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+  const brandColors = ['#d6248c', '#6f3bd6', '#1f7fd6'];
+
+  new Chart(document.getElementById('ratingsChart'), {
+    type: 'bar',
+    data: {
+      labels: chartData.ratings.labels,
+      datasets: [{ label: 'Star Rating (1-5)', data: chartData.ratings.values, backgroundColor: brandColors[0] }],
+    },
+    options: { scales: { y: { beginAtZero: true, max: 5 } }, plugins: { legend: { display: false } } },
+  });
+
+  new Chart(document.getElementById('claimsPercentChart'), {
+    type: 'bar',
+    data: {
+      labels: chartData.claims_percent.labels,
+      datasets: [
+        { label: 'Facility', data: chartData.claims_percent.facility, backgroundColor: brandColors[0] },
+        { label: 'National Avg', data: chartData.claims_percent.national, backgroundColor: brandColors[1] },
+        { label: 'State Avg', data: chartData.claims_percent.state, backgroundColor: brandColors[2] },
+      ],
+    },
+    options: { plugins: { title: { display: true, text: 'Short-Stay Metrics (%)' } } },
+  });
+
+  new Chart(document.getElementById('claimsRateChart'), {
+    type: 'bar',
+    data: {
+      labels: chartData.claims_rate.labels,
+      datasets: [
+        { label: 'Facility', data: chartData.claims_rate.facility, backgroundColor: brandColors[0] },
+        { label: 'National Avg', data: chartData.claims_rate.national, backgroundColor: brandColors[1] },
+        { label: 'State Avg', data: chartData.claims_rate.state, backgroundColor: brandColors[2] },
+      ],
+    },
+    options: { plugins: { title: { display: true, text: 'Long-Stay Metrics (per 1000 resident days)' } } },
+  });
+</script>
+{% endblock %}

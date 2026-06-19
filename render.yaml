@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: medelite-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: CORS_ALLOW_ORIGINS
+        value: '["https://medelite-frontend.onrender.com"]'
+
+  - type: web
+    name: medelite-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: medelite-frontend.onrender.com
+      - key: BACKEND_API_URL
+        value: https://medelite-backend.onrender.com

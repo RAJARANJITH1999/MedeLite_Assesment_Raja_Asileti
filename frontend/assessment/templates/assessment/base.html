@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Facility Assessment{% endblock %} — INFINITE Managed by MEDELITE</title>
+  <link rel="stylesheet" href="{% static 'assessment/style.css' %}">
+</head>
+<body>
+  <div class="brand-header">
+    <div class="wordmark">INFINITE</div>
+    <div class="tagline">Managed by MEDELITE</div>
+  </div>
+
+  <nav class="top-nav">
+    <a href="{% url 'lookup' %}" class="{% if request.resolver_match.url_name == 'lookup' %}active{% endif %}">New Lookup</a>
+    <a href="{% url 'history' %}" class="{% if request.resolver_match.url_name == 'history' %}active{% endif %}">History</a>
+    <a href="{% url 'compare' %}" class="{% if request.resolver_match.url_name == 'compare' %}active{% endif %}">Compare</a>
+  </nav>
+
+  <main class="page">
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">Facility Assessment Report Generator — Medelite internal tool</footer>
+</body>
+</html>

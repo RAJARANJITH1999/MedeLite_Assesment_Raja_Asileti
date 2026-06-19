@@ -1,0 +1,19 @@
+{% extends "assessment/base.html" %}
+{% block title %}New Lookup{% endblock %}
+{% block content %}
+<h1 class="page-title">Facility Lookup</h1>
+<p>Enter a CMS Certification Number to pull public facility data from the CMS Provider Data Catalog.</p>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% for field in form %}
+    <label for="{{ field.id_for_label }}">
+      {{ field.label }}
+      {% if field.help_text %}<span class="tooltip-icon" data-tooltip="{{ field.help_text }}" tabindex="0">i</span>{% endif %}
+    </label>
+    {{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+  {% endfor %}
+  <button type="submit" class="btn btn-primary">Look up facility</button>
+</form>
+{% endblock %}
