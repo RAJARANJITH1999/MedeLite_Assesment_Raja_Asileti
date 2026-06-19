@@ -10,8 +10,11 @@ rendering, tests, Docker, and CI — in **under 1 hour**, using
 [Claude Code](https://claude.com/claude-code) as a hands-on engineering
 partner.
 
-> **Live demo:** _add Render URL here after deploy_
+> **Live demo:** [medelite-frontend.onrender.com](https://medelite-frontend.onrender.com)
 > **Test CCN:** `686123` (Kendall Lakes Healthcare and Rehab Center, FL)
+>
+> Note: hosted on Render's free tier — the first request after a period of
+> inactivity may take 30–60 seconds while the service wakes up.
 
 ---
 
@@ -159,6 +162,43 @@ cd frontend && source venv/bin/activate && python manage.py test assessment
 16 tests total (8 backend, 8 frontend), run automatically in CI on every
 push/PR via `.github/workflows/ci.yml`. Backend tests run against frozen CMS
 fixtures — no network access needed.
+
+## Deployment
+
+Live on **Render's free tier**, deployed as a single **Blueprint**
+(`render.yaml` at the repo root) covering both services in one apply:
+
+- **`medelite-frontend`** — Django, built from `frontend/Dockerfile`. This is
+  the URL shared with evaluators above.
+- **`medelite-backend`** — FastAPI, built from `backend/Dockerfile`. Not
+  meant to be visited directly — the frontend talks to it over
+  `BACKEND_API_URL`, and it must stay running for any CCN lookup to work.
+
+Both came up together from the one Blueprint apply, so there's nothing
+extra to deploy or wire up separately.
+
+**How it connects to GitHub:** Render's GitHub App is authorized against
+this repository (`RAJARANJITH1999/MedeLite_Assesment_Raja_Asileti`). Render
+reads `render.yaml`, provisions both web services from their respective
+Dockerfiles, and — because the GitHub connection is live, not a one-time
+upload — every subsequent push to `main` triggers an automatic rebuild and
+redeploy of both services. No manual re-upload step.
+
+**Secrets never touch the repo:** `OPENAI_API_KEY` is declared in
+`render.yaml` with `sync: false`, which tells Render "don't expect this from
+a file — prompt for it once in the dashboard and store it server-side."
+`DJANGO_SECRET_KEY` uses `generateValue: true`, so Render generates a random
+secret itself at first deploy. Both are pasted directly into Render's
+Environment Variables UI for the relevant service, never committed.
+
+**Free-tier caveats** (worth knowing before evaluating it):
+- Both services **spin down after 15 minutes of inactivity** and take
+  roughly 30–60 seconds to wake up on the next request — if the first load
+  feels slow, that's a cold start, not a bug.
+- The free plan has **no persistent disk**, so the SQLite-backed lookup
+  history resets on every redeploy/restart. Fine for evaluating the core
+  report-generation flow; not meant to demonstrate durable history storage
+  on this tier.
 
 ## Notable engineering decisions
 
