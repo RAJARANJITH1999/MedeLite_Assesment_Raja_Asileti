@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -76,12 +77,14 @@ class ManualInputsAndResultsFlowTests(TestCase):
         response = self.client.post(
             reverse("manual_inputs"),
             {
-                "emr": "PCC",
+                "emr": "__other__",
+                "emr_other": "PCC",
                 "current_census": 112,
                 "patient_type": "Long-term & Short-term",
                 "previous_coverage": "Yes",
-                "previous_performance": "About 30 patients/day",
-                "medical_coverage": "Optometry, PCP, Podiatry",
+                "previous_performance": "__other__",
+                "previous_performance_other": "About 30 patients/day",
+                "medical_coverage": ["Optometry", "Primary Care (PCP)", "Podiatry"],
             },
         )
 
@@ -90,6 +93,9 @@ class ManualInputsAndResultsFlowTests(TestCase):
         saved = SavedLookup.objects.first()
         self.assertEqual(saved.ccn, "686123")
         self.assertEqual(saved.ai_summary, "Test summary.")
+        self.assertEqual(saved.manual_inputs["emr"], "PCC")
+        self.assertEqual(saved.manual_inputs["previous_performance"], "About 30 patients/day")
+        self.assertEqual(saved.manual_inputs["medical_coverage"], "Optometry, Primary Care (PCP), Podiatry")
 
         results_response = self.client.get(reverse("results"))
         self.assertContains(results_response, "KENDALL LAKES HEALTHCARE AND REHAB CENTER")
