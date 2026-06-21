@@ -245,6 +245,15 @@ def chat_view(request):
     except backend_client.BackendError as exc:
         return JsonResponse({"error": "backend_error", "message": str(exc)}, status=502)
 
+    if result["generated_by"] == "filtered":
+        return JsonResponse(
+            {
+                "answer": result["answer"],
+                "generated_by": result["generated_by"],
+                "remaining": CHAT_QUESTION_LIMIT - used,
+            }
+        )
+
     request.session[SESSION_CHAT_COUNT] = used + 1
     return JsonResponse(
         {

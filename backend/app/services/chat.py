@@ -10,6 +10,36 @@ SANAVOX_SYSTEM_PROMPT = (
     "no markdown headers."
 )
 
+SANAVOX_OFF_TOPIC_MESSAGE = (
+    "Sanavox only answers questions about the facility reports and comparisons shown "
+    "on this page — things like star ratings, hospitalization/ED metrics, census, EMR, "
+    "or coverage details. That question doesn't look related, so it hasn't used up one "
+    "of your preview questions. Please ask something about the reports above."
+)
+
+# Deterministic keyword gate — catches obviously off-topic questions (chit-chat,
+# general trivia, unrelated requests) before spending an OpenAI call on them.
+_RELEVANT_KEYWORDS = (
+    "facility", "facilities", "report", "compare", "comparison", "rating",
+    "rated", "star", "inspection", "staffing", "staff", "quality", "resident",
+    "care", "hospitalization", "hospitalize", "hospital", "emergency",
+    "ed visit", "visit", "census", "bed", "beds", "emr", "medicare", "ccn",
+    "location", "address", "state", "national", "average", "patient",
+    "coverage", "medical", "performance", "score", "percent", "percentage",
+    "metric", "measure", "snapshot", "better", "worse", "compared",
+)
+
+
+def _is_in_scope(question: str, facilities: list[ChatFacility]) -> bool:
+    text = question.lower()
+    if any(keyword in text for keyword in _RELEVANT_KEYWORDS):
+        return True
+    for item in facilities:
+        for word in item.facility.facility_name_from_cms.lower().split():
+            if len(word) > 3 and word in text:
+                return True
+    return False
+
 
 def _build_context(facilities: list[ChatFacility]) -> str:
     blocks = [
@@ -21,6 +51,9 @@ def _build_context(facilities: list[ChatFacility]) -> str:
 
 
 async def answer_question(facilities: list[ChatFacility], question: str) -> ChatResponse:
+    if not _is_in_scope(question, facilities):
+        return ChatResponse(answer=SANAVOX_OFF_TOPIC_MESSAGE, generated_by="filtered")
+
     if not settings.openai_api_key:
         return ChatResponse(
             answer=(
