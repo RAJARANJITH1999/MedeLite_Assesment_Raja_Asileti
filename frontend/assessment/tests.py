@@ -120,3 +120,52 @@ class BrandingGuardrailTests(TestCase):
         self.assertIn("INFINITE", content)
         # The brand wordmark block appears before the overridden name in the body.
         self.assertLess(content.index('class="wordmark"'), content.index("Medelite Internal Name"))
+
+
+class ChatViewTests(TestCase):
+    def _post_chat(self, question):
+        return self.client.post(
+            reverse("chat"),
+            data=json.dumps({"question": question, "facilities": [{"facility": SAMPLE_FACILITY, "manual": {}}]}),
+            content_type="application/json",
+        )
+
+    @patch("assessment.views.backend_client.post_chat")
+    def test_greeting_never_uses_up_a_question(self, mock_post_chat):
+        mock_post_chat.return_value = {"answer": "Hi there!", "generated_by": "greeting"}
+
+        response = self._post_chat("Hi")
+
+        self.assertEqual(response.json()["remaining"], 3)
+        self.assertEqual(self.client.session.get("sanavox_question_count", 0), 0)
+
+    @patch("assessment.views.backend_client.post_chat")
+    def test_first_two_off_topic_questions_are_free_warnings(self, mock_post_chat):
+        mock_post_chat.return_value = {"answer": "Off-topic.", "generated_by": "filtered"}
+
+        first = self._post_chat("What's the weather?")
+        second = self._post_chat("Tell me a joke")
+
+        self.assertEqual(first.json()["remaining"], 3)
+        self.assertEqual(second.json()["remaining"], 3)
+        self.assertEqual(self.client.session.get("sanavox_question_count", 0), 0)
+
+    @patch("assessment.views.backend_client.post_chat")
+    def test_third_off_topic_question_costs_a_slot(self, mock_post_chat):
+        mock_post_chat.return_value = {"answer": "Off-topic.", "generated_by": "filtered"}
+
+        self._post_chat("What's the weather?")
+        self._post_chat("Tell me a joke")
+        third = self._post_chat("Write me a poem")
+
+        self.assertEqual(third.json()["remaining"], 2)
+        self.assertEqual(self.client.session.get("sanavox_question_count", 0), 1)
+
+    @patch("assessment.views.backend_client.post_chat")
+    def test_real_answer_uses_up_a_question(self, mock_post_chat):
+        mock_post_chat.return_value = {"answer": "Facility A has better staffing.", "generated_by": "openai:gpt-4o-mini"}
+
+        response = self._post_chat("Which facility has better staffing?")
+
+        self.assertEqual(response.json()["remaining"], 2)
+        self.assertEqual(self.client.session.get("sanavox_question_count", 0), 1)

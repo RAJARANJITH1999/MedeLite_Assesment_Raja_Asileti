@@ -16,7 +16,9 @@ SESSION_AI_SUMMARY = "ai_summary"
 SESSION_AI_GENERATED_BY = "ai_generated_by"
 
 SESSION_CHAT_COUNT = "sanavox_question_count"
+SESSION_OFF_TOPIC_STRIKES = "sanavox_off_topic_strikes"
 CHAT_QUESTION_LIMIT = 3
+OFF_TOPIC_GRACE_LIMIT = 2  # first 2 off-topic questions are free warnings
 
 
 def lookup_view(request):
@@ -245,12 +247,35 @@ def chat_view(request):
     except backend_client.BackendError as exc:
         return JsonResponse({"error": "backend_error", "message": str(exc)}, status=502)
 
-    if result["generated_by"] == "filtered":
+    if result["generated_by"] == "greeting":
+        # Pleasantries (hi/thanks/etc.) never use up a preview question.
         return JsonResponse(
             {
                 "answer": result["answer"],
                 "generated_by": result["generated_by"],
                 "remaining": CHAT_QUESTION_LIMIT - used,
+            }
+        )
+
+    if result["generated_by"] == "filtered":
+        strikes = request.session.get(SESSION_OFF_TOPIC_STRIKES, 0) + 1
+        request.session[SESSION_OFF_TOPIC_STRIKES] = strikes
+        if strikes <= OFF_TOPIC_GRACE_LIMIT:
+            # First couple of off-topic questions are free warnings.
+            return JsonResponse(
+                {
+                    "answer": result["answer"],
+                    "generated_by": result["generated_by"],
+                    "remaining": CHAT_QUESTION_LIMIT - used,
+                }
+            )
+        # Off-topic again after the warnings — this one costs a question slot.
+        request.session[SESSION_CHAT_COUNT] = used + 1
+        return JsonResponse(
+            {
+                "answer": result["answer"] + " This one used up a preview question since it's still off-topic after earlier reminders.",
+                "generated_by": result["generated_by"],
+                "remaining": CHAT_QUESTION_LIMIT - (used + 1),
             }
         )
 

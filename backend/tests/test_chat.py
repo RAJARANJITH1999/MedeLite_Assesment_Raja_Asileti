@@ -1,7 +1,7 @@
 from app.schemas.chat import ChatFacility
 from app.schemas.facility import ClaimsMetric, FacilityData
 from app.schemas.manual import ManualInputs
-from app.services.chat import _is_in_scope
+from app.services.chat import SANAVOX_GREETING_MESSAGE, SANAVOX_THANKS_MESSAGE, _greeting_response, _is_in_scope
 
 _METRIC = ClaimsMetric(label="Short Term Hospitalization", facility_value=27.4, national_avg=20.0, state_avg=21.0)
 
@@ -43,3 +43,19 @@ def test_unrelated_question_is_out_of_scope():
 
 def test_generic_chitchat_is_out_of_scope():
     assert _is_in_scope("Tell me a joke", [_FACILITY]) is False
+
+
+def test_hi_is_recognized_as_opening_greeting():
+    assert _greeting_response("Hi") == SANAVOX_GREETING_MESSAGE
+
+
+def test_thank_you_is_recognized_as_closing_courtesy():
+    assert _greeting_response("Thank you!") == SANAVOX_THANKS_MESSAGE
+
+
+def test_real_question_is_not_treated_as_greeting():
+    assert _greeting_response("Which facility has better staffing?") is None
+
+
+def test_unrelated_trivia_is_not_treated_as_greeting():
+    assert _greeting_response("What's the weather like today?") is None

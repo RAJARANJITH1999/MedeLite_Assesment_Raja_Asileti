@@ -13,9 +13,16 @@ SANAVOX_SYSTEM_PROMPT = (
 SANAVOX_OFF_TOPIC_MESSAGE = (
     "Sanavox only answers questions about the facility reports and comparisons shown "
     "on this page — things like star ratings, hospitalization/ED metrics, census, EMR, "
-    "or coverage details. That question doesn't look related, so it hasn't used up one "
-    "of your preview questions. Please ask something about the reports above."
+    "or coverage details. Please ask something about the reports above."
 )
+
+SANAVOX_GREETING_MESSAGE = (
+    "Hi! I'm Sanavox. Heads up — you only get a few preview questions this session, so "
+    "make them count: ask about the facility reports or comparison above (ratings, "
+    "hospitalization/ED metrics, census, EMR, coverage, etc.)."
+)
+
+SANAVOX_THANKS_MESSAGE = "You're welcome! Happy to help — ask anything about the reports above."
 
 # Deterministic keyword gate — catches obviously off-topic questions (chit-chat,
 # general trivia, unrelated requests) before spending an OpenAI call on them.
@@ -27,6 +34,15 @@ _RELEVANT_KEYWORDS = (
     "location", "address", "state", "national", "average", "patient",
     "coverage", "medical", "performance", "score", "percent", "percentage",
     "metric", "measure", "snapshot", "better", "worse", "compared",
+)
+
+# Short conversational pleasantries — never substantive questions, so they get a
+# friendly canned reply instead of the off-topic rejection.
+_GREETING_OPENERS = ("hi", "hello", "hey", "hiya", "yo", "greetings", "good morning", "good afternoon", "good evening")
+_GREETING_CLOSERS = (
+    "thank you", "thanks", "thx", "ty", "ok", "okay", "k", "bye", "goodbye",
+    "see you", "cool", "great", "nice", "awesome", "got it", "sounds good",
+    "alright", "sure", "perfect", "no problem", "np",
 )
 
 
@@ -41,6 +57,17 @@ def _is_in_scope(question: str, facilities: list[ChatFacility]) -> bool:
     return False
 
 
+def _greeting_response(question: str) -> str | None:
+    text = question.strip().lower().rstrip("!.,? ")
+    if len(text.split()) > 4:
+        return None
+    if any(text == phrase or text.startswith(phrase + " ") for phrase in _GREETING_OPENERS):
+        return SANAVOX_GREETING_MESSAGE
+    if any(text == phrase or text.startswith(phrase + " ") for phrase in _GREETING_CLOSERS):
+        return SANAVOX_THANKS_MESSAGE
+    return None
+
+
 def _build_context(facilities: list[ChatFacility]) -> str:
     blocks = [
         f"--- Facility {i}: {item.facility.facility_name_from_cms} ---\n"
@@ -52,6 +79,9 @@ def _build_context(facilities: list[ChatFacility]) -> str:
 
 async def answer_question(facilities: list[ChatFacility], question: str) -> ChatResponse:
     if not _is_in_scope(question, facilities):
+        greeting = _greeting_response(question)
+        if greeting:
+            return ChatResponse(answer=greeting, generated_by="greeting")
         return ChatResponse(answer=SANAVOX_OFF_TOPIC_MESSAGE, generated_by="filtered")
 
     if not settings.openai_api_key:
